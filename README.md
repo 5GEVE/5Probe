@@ -1,20 +1,62 @@
-# Probe documentation
+# 5Probe
+## Introduction
 
-This probe is a software that listens on a network interface to capture traffic, based on filters that can be configured. Once the traffic is captured it is able to extract KPIs from it based on calculating flow metrics. Finally, the probe sends the calculated KPIs to an Influxdb database.
+*5Probe* is a software probe that extracts networking KPIs by analyzing the data plane traffic. 
+The component is part of the [5G EVE](https://www.5g-eve.e) project, originally developed for the 
+[5Tonic](https://www.5tonic.org/) laboratory.
 
-The probe is able to handle TCP, ICMP and GTP-U traffic: 
- - From TCP traffic it can calculate:
-    *  Throughput, uplink and downlik, in bytes per second.
-    *  Smooth round-trip time (SRTT). 
- - From ICMP traffic it can calculate: 
-    * Throughput, uplink and downlik, in bytes per second. 
-    * Round trip time (RTT).
- - From GTP-U traffic:
-    * It extracts the ends of the GTP tunnel and treats the encapsulated packet.    
+## Network KPIs
 
+The 5Probe extracts KPIs from end-users traffic by analyzing it with DPI techniques. It is able to produce the 
+following KPIs for each end-user flow:
+* Uplink Throughput (Bytes per second)
+* Downlink Throughput (Bytes per second)
+* Smooth Round-Trip Time (SRTT, in milliseconds)
+* One Way Delay (OWD, in milliseconds)
 
+For the next release we plan to include:
+* Packet Loss (%)
+* Availability (%)
+* Reliability (%)
+
+Some KPIs are protocol dependant, as we show in the following compatibility matrix:
+
+|   | TCP | UDP | ICMP
+| --- |--- | --- | ---
+| **Throughput** | Yes | Yes | Yes |
+| **SRTT** | Yes | No | Yes |
+| **OWD** | Planned | Planned | Yes |
+| **Packet Loss** | Planned | Planned | Planned |
+| **Availability** | Planned | Planned | Planned |
+| **Reliability** | Planned | Planned | Planned |
+
+## Deployment architecture
+
+The 5Tonic is a software component that can be deployed on top of any Linux machine, including Intel and ARM boxes. For 
+an optimal deployment, we recommend deploying the probe in:
+* The UE side, where it captures directly the UE incoming and outcoming traffic
+* The Core side. The 5Probe is able to de-encapsulate GTP traffic for analyzing the Radio-Core traffic.
+* The App side, where it captures the Service incoming and outcoming traffic.
+
+![Network architecture](images/network_architecture.png)
+
+The above figure shows how to integrate the 5Probe into a 4G or 5G network in the recommended capturing point.
+The 5Probe stores the obtained KPIs into an [Influx DB](https://www.influxdata.com/) database and it requires
+to have an OAM network that provides connectivity between the probes and the database. The figure also shows how the 
+5Probes are integrated with the 5G EVE Data Collection module.
+
+## Requirements
+
+1. 5Probe runs on top of any Linux server. We provide binaries for x64 and ARM architectures.
+2. OAM network for interconnecting the probes and the influx db server.
+3. An instance of Influx DB.
+4. For the OWD KPI the 5Probe requires a Time Source reference that synchronize each 5Probe server.
+
+Optionally, it is useful to deploy a visualization tool like [Grafana](https://grafana.com/)
+  
 ## APIs
-By default the probe has an API that listens on port 5100. This API exposes the following endpoints: 
+
+By default, the 5Probe has an API that listens on port 5100. This API exposes the following endpoints: 
 
 * Endpoints for configuring and managing the probe's sniffer:
 
@@ -30,12 +72,10 @@ By default the probe has an API that listens on port 5100. This API exposes the 
 |:------:	|:----:	|:---------------------------------------------------------------------------------------------:	|
 | GET 	| /kpi 	| The information of KPIs that are currently in the probe's internal storage will be displayed. 	|
 | GET 	| /owd 	| The information of OWD that is currently in the probe's internal storage will be displayed. 	|
-|  	|  	|  	|
+
 
 
 ## Configuration and execution
-
-In this secction it will be explained how to configure and install the probe.
 
 To make configuration and execution simple, two scripts will be provided. The first one called setupProbe.sh which installs dependencies and gives the binary called probe the permissions it needs to capture traffic. The second one called launchProbe.sh will run the probe using the configuration file probe_config.yml and generate a file called output.txt in which the probe's log will be written.
 
